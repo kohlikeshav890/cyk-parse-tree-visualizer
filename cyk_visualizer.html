@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CYK Parse Tree Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg:      #070b16;
+    --surface: #0d1525;
+    --card:    #111e30;
+    --border:  #1a2d45;
+    --accent:  #4f8ef7;
+    --indigo:  #7c83f5;
+    --cyan:    #1fd2e8;
+    --green:   #2ecc8e;
+    --amber:   #f5b731;
+    --red:     #f06060;
+    --text:    #d8e3f2;
+    --muted:   #526480;
+    --dim:     #1e3050;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .logo {
+    width: 42px; height: 42px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--indigo));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .header-title { font-size: 16px; font-weight: 800; letter-spacing: -.02em; }
+  .header-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Main layout ── */
+  .main { max-width: 1300px; margin: 0 auto; padding: 20px 28px; }
+
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .btn {
+    padding: 7px 15px; border-radius: 6px; border: 1px solid;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+    cursor: pointer; transition: all .2s; background: transparent;
+  }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-accent  { color: var(--accent);  border-color: #4f8ef755; }
+  .btn-accent:not(:disabled):hover  { background: #4f8ef718; }
+  .btn-indigo  { color: var(--indigo); border-color: #7c83f555; }
+  .btn-indigo:not(:disabled):hover  { background: #7c83f518; }
+  .btn-cyan    { color: var(--cyan);   border-color: #1fd2e855; }
+  .btn-cyan:not(:disabled):hover    { background: #1fd2e818; }
+  .btn-green   { color: var(--green);  border-color: #2ecc8e55; }
+  .btn-green:not(:disabled):hover   { background: #2ecc8e18; }
+  .anim-badge {
+    color: var(--amber); background: #f5b73118;
+    border: 1px solid #f5b73144; padding: 6px 12px;
+    border-radius: 6px; font-size: 11px;
+  }
+
+  /* ── Tabs ── */
+  .tab-bar {
+    display: flex; border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+  .tab {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--muted); padding: 9px 16px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+    transition: all .2s;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Panels ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Section card ── */
+  .section {
+    background: var(--card); border-radius: 10px;
+    border: 1px solid var(--border); padding: 18px;
+    margin-bottom: 14px;
+  }
+  .section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+
+  /* ── Grid helpers ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* ── Textarea / input ── */
+  textarea, input[type=text] {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    padding: 12px; outline: none; width: 100%; transition: border-color .2s;
+    line-height: 1.9; resize: vertical;
+  }
+  textarea:focus, input[type=text]:focus { border-color: var(--accent); }
+  .input-hint { color: var(--muted); font-size: 11px; margin-top: 7px; }
+
+  /* ── Grammar display ── */
+  .grammar-box {
+    background: var(--bg); border-radius: 8px; border: 1px solid var(--border);
+    padding: 14px; font-family: 'JetBrains Mono', monospace;
+  }
+  .grammar-box-title { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+  .grammar-rule { font-size: 12px; color: var(--text); line-height: 2; }
+
+  /* ── Step chips ── */
+  .step-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .step-chip {
+    background: var(--bg); border-radius: 8px; padding: 10px 14px;
+    border: 1px solid #4f8ef740; min-width: 160px;
+  }
+  .step-chip-title { color: var(--accent); font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+  .step-chip-detail { color: var(--muted); font-size: 11px; }
+
+  /* ── Pill badges ── */
+  .pill {
+    display: inline-block; border-radius: 4px; padding: 1px 7px;
+    font-size: 11px; font-weight: 600; font-family: 'JetBrains Mono', monospace;
+    border: 1px solid;
+  }
+
+  /* ── Banner ── */
+  .banner {
+    padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .banner-green  { background: #2ecc8e18; border: 1px solid #2ecc8e55; color: var(--green); }
+  .banner-red    { background: #f0606018; border: 1px solid #f0606055; color: var(--red); }
+  .banner-amber  { background: #f5b73118; border: 1px solid #f5b73155; color: var(--amber); }
+
+  /* ── Token pills ── */
+  .token-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .token-pill {
+    background: #1fd2e818; border: 1px solid #1fd2e855;
+    color: var(--cyan); border-radius: 4px; padding: 2px 9px; font-size: 12px;
+  }
+
+  /* ── CYK Table ── */
+  .cyk-table-wrap { overflow-x: auto; }
+  .cyk-hint { font-size: 11px; color: var(--muted); margin-bottom: 10px; line-height: 1.7; }
+  .cyk-table { border-collapse: collapse; }
+  .cyk-table th {
+    color: var(--muted); padding: 4px 10px; font-size: 11px;
+    font-weight: 600; font-family: 'JetBrains Mono', monospace;
+  }
+  .cyk-table td {
+    padding: 5px 6px; border: 1px solid var(--border);
+    background: var(--surface); min-width: 72px; max-width: 130px;
+    vertical-align: top; transition: background .25s, border-color .25s;
+  }
+  .cyk-table td.empty { background: var(--bg); border-color: var(--bg); }
+  .cyk-table td.highlight { background: #f5b73118; border-color: var(--amber); }
+  .cyk-table td.accepted-cell { background: #2ecc8e14; }
+  .cyk-row-label { color: var(--cyan); padding: 5px 10px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .nt-chip {
+    display: inline-block; border-radius: 3px; padding: 1px 5px;
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    margin: 1px; border: 1px solid var(--dim);
+    background: #7c83f518; color: var(--text);
+  }
+  .nt-chip.start-nt {
+    background: #4f8ef72a; color: var(--accent); border-color: #4f8ef755; font-weight: 700;
+  }
+  .nt-dash { color: var(--dim); font-size: 10px; }
+
+  /* ── Ambiguity report ── */
+  .ambiguity-detail { font-size: 12px; color: var(--muted); margin-top: 7px; line-height: 1.85; }
+
+  /* ── Tree selector ── */
+  .tree-selector { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .tree-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--muted); padding: 4px 13px; border-radius: 5px;
+    cursor: pointer; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    transition: all .2s;
+  }
+  .tree-btn.active { background: #4f8ef72a; border-color: var(--accent); color: var(--accent); }
+
+  /* ── SVG Tree ── */
+  #tree-svg-wrap { overflow-x: auto; }
+
+  /* ── Theory table ── */
+  .theory-row {
+    display: flex; gap: 10px; padding: 7px 0;
+    border-bottom: 1px solid var(--border); align-items: flex-start;
+  }
+  .theory-val { color: var(--cyan); font-weight: 700; min-width: 60px; font-size: 12px; }
+  .theory-label { color: var(--text); font-size: 12px; }
+  .theory-sub { color: var(--muted); font-size: 11px; }
+
+  /* ── Stats grid ── */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .stat-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 9px 11px;
+  }
+  .stat-key { color: var(--muted); font-size: 10px; margin-bottom: 3px; }
+  .stat-val { color: var(--text); font-size: 16px; font-weight: 800; }
+
+  /* ── Complexity box ── */
+  .complexity-box {
+    text-align: center; padding: 18px 0;
+    background: #4f8ef70e; border-radius: 8px; margin-bottom: 14px;
+  }
+  .complexity-val { font-size: 34px; font-weight: 800; color: var(--accent); }
+  .complexity-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Module list ── */
+  .mod-row {
+    display: flex; gap: 10px; padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .mod-name { color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; min-width: 170px; }
+  .mod-desc { color: var(--muted); font-size: 11px; }
+
+  /* ── Error ── */
+  #error-bar {
+    display: none; background: #f0606018; border: 1px solid #f0606055;
+    color: var(--red); padding: 7px 13px; border-radius: 6px; font-size: 11px;
+    margin-left: auto;
+  }
+  #error-bar.show { display: block; }
+
+  /* ── Max trees input ── */
+  input[type=number] {
+    width: 58px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; padding: 2px 7px; outline: none;
+  }
+
+  /* ── CNF info box ── */
+  .cnf-ok {
+    background: #2ecc8e0e; border: 1px solid #2ecc8e44;
+    border-radius: 8px; padding: 11px 14px; font-size: 12px; color: var(--muted);
+  }
+  .cnf-ok strong { color: var(--green); }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="header">
+  <div class="logo">⊢</div>
+  <div>
+    <div class="header-title">CYK Parse Tree Visualizer</div>
+    <div class="header-sub">CFG → CNF · CYK Algorithm O(n³|G|) · Ambiguity Detection · Parse Tree Reconstruction</div>
+  </div>
+  <div id="error-bar">⚠ <span id="error-msg"></span></div>
+</div>
+
+<!-- ── MAIN ── -->
+<div class="main">
+
+  <!-- Action Buttons -->
+  <div class="btn-row">
+    <button class="btn btn-accent"  onclick="doConvertCNF()">① Convert to CNF</button>
+    <button class="btn btn-indigo"  onclick="doRunCYK()"     id="btn-cyk"   disabled>② Run CYK</button>
+    <button class="btn btn-cyan"    onclick="doAnimate()"    id="btn-anim"  disabled>③ Animate Parsing</button>
+    <button class="btn btn-green"   onclick="doShowTrees()"  id="btn-trees" disabled>④ Show Parse Trees</button>
+    <span id="anim-badge" class="anim-badge" style="display:none">▶ Animating…</span>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('input',this)">① Grammar</button>
+    <button class="tab"        onclick="switchTab('cnf',this)">② CNF</button>
+    <button class="tab"        onclick="switchTab('cyk',this)">③ CYK Table</button>
+    <button class="tab"        onclick="switchTab('trees',this)">④ Parse Trees</button>
+    <button class="tab"        onclick="switchTab('theory',this)">⑤ Theory</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ PANEL: INPUT -->
+  <div id="panel-input" class="panel active">
+    <div class="grid-2">
+      <div class="section">
+        <div class="section-title" style="color:var(--accent)">Context-Free Grammar</div>
+        <textarea id="grammar-input" rows="10">Non-terminals: E
+Terminals: + * id
+Start: E
+Productions:
+  E -> E + E | E * E | id</textarea>
+        <div class="input-hint">Format: Non-terminals / Terminals / Start / Productions (use | for alternatives)</div>
+      </div>
+      <div>
+        <div class="section">
+          <div class="section-title" style="color:var(--indigo)">Input String</div>
+          <input type="text" id="input-string" value="id + id * id" />
+          <div class="input-hint">Space-separated tokens</div>
+        </div>
+        <div class="section" style="border-color:#f5b73140">
+          <div class="section-title" style="color:var(--amber)">★ Example — Ambiguous Expression Grammar</div>
+          <div style="font-size:12px;color:var(--text);line-height:2.1">
+            <span class="pill" style="color:var(--indigo);border-color:#7c83f540;background:#7c83f518">E</span>
+            → <span class="pill" style="color:var(--indigo);border-color:#7c83f540;background:#7c83f518">E</span>
+            + <span class="pill" style="color:var(--indigo);border-color:#7c83f540;background:#7c83f518">E</span><br>
+            <span class="pill" style="color:var(--indigo);border-color:#7c83f540;background:#7c83f518">E</span>
+            → <span class="pill" style="color:var(--indigo);border-color:#7c83f540;background:#7c83f518">E</span>
+            * <span class="pill" style="color:var(--indigo);border-color:#7c83f540;background:#7c83f518">E</span><br>
+            <span class="pill" style="color:var(--indigo);border-color:#7c83f540;background:#7c83f518">E</span>
+            → <span class="pill" style="color:var(--cyan);border-color:#1fd2e840;background:#1fd2e818">id</span>
+          </div>
+          <div style="margin-top:9px;font-size:12px;color:var(--muted)">
+            Test string: <span class="pill" style="color:var(--amber);border-color:#f5b73140;background:#f5b73118">id + id * id</span>
+            <span style="margin-left:6px">→ 2 parse trees (operator precedence ambiguity)</span>
+          </div>
+          <div style="margin-top:11px;font-size:11px;color:var(--muted)">
+            Max trees to display:
+            <input type="number" id="max-trees" value="10" min="1" max="100" style="margin-left:6px">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ PANEL: CNF -->
+  <div id="panel-cnf" class="panel">
+    <div id="cnf-empty" style="color:var(--muted);text-align:center;padding:60px">
+      Click <strong style="color:var(--accent)">Convert to CNF</strong> to begin transformation.
+    </div>
+    <div id="cnf-content" style="display:none">
+      <div class="section">
+        <div class="section-title" style="color:var(--accent)">Transformation Steps</div>
+        <div class="step-chips" id="step-chips"></div>
+      </div>
+      <div class="grid-2">
+        <div class="grammar-box" id="orig-grammar-box">
+          <div class="grammar-box-title" style="color:var(--muted)">Original CFG</div>
+        </div>
+        <div class="grammar-box" id="cnf-grammar-box">
+          <div class="grammar-box-title" style="color:var(--green)">CNF Grammar</div>
+        </div>
+      </div>
+      <div class="cnf-ok" style="margin-top:14px">
+        <strong>✓ CNF Invariants verified:</strong> All rules are A → BC (two non-terminals) or A → a (single terminal).
+        No ε-productions, no unit productions, no useless symbols.
+        Start symbol: <span id="cnf-start-display" class="pill" style="color:var(--accent);border-color:#4f8ef740;background:#4f8ef718"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ PANEL: CYK -->
+  <div id="panel-cyk" class="panel">
+    <div id="cyk-empty" style="color:var(--muted);text-align:center;padding:60px">
+      Click <strong style="color:var(--indigo)">Run CYK</strong> to fill the parsing table.
+    </div>
+    <div id="cyk-content" style="display:none">
+      <div id="cyk-banner" class="banner"></div>
+      <div class="token-row" id="token-row"></div>
+      <div class="section">
+        <div class="cyk-hint">
+          <strong style="color:var(--text)">CYK Triangular Table</strong> — row = start index i, col = span length ℓ.
+          Cell (i, ℓ) holds all NTs that derive w[i..i+ℓ−1].
+          <span style="color:var(--green);margin-left:8px">■ start symbol present</span>
+          <span style="color:var(--amber);margin-left:8px">■ current animation step</span>
+        </div>
+        <div class="cyk-table-wrap" id="cyk-table-wrap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ PANEL: TREES -->
+  <div id="panel-trees" class="panel">
+    <div id="trees-empty" style="color:var(--muted);text-align:center;padding:60px">
+      Click <strong style="color:var(--green)">Show Parse Trees</strong> to reconstruct derivations.
+    </div>
+    <div id="trees-content" style="display:none">
+      <div id="ambiguity-banner" class="banner"></div>
+      <div id="ambiguity-detail" class="ambiguity-detail"></div>
+      <div class="tree-selector" id="tree-selector" style="margin-top:12px"></div>
+      <div class="section">
+        <div class="section-title" style="color:var(--cyan)" id="tree-section-title">Parse Tree</div>
+        <div id="tree-svg-wrap"></div>
+        <div style="display:flex;gap:20px;margin-top:12px;font-size:11px;color:var(--muted)">
+          <span>
+            <svg width="12" height="12" style="vertical-align:middle;margin-right:4px">
+              <circle cx="6" cy="6" r="5" fill="none" stroke="#4f8ef7" stroke-width="1.5"/>
+            </svg>Non-terminal
+          </span>
+          <span>
+            <svg width="12" height="12" style="vertical-align:middle;margin-right:4px">
+              <circle cx="6" cy="6" r="5" fill="none" stroke="#1fd2e8" stroke-width="1.5"/>
+            </svg>Terminal (leaf)
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ PANEL: THEORY -->
+  <div id="panel-theory" class="panel">
+    <div class="grid-2">
+      <div>
+        <div class="section">
+          <div class="section-title" style="color:var(--accent)">CYK Time Complexity</div>
+          <div class="complexity-box">
+            <div class="complexity-val">O(n³ · |G|)</div>
+            <div class="complexity-sub">n = |w|,  |G| = number of CNF productions</div>
+          </div>
+          <div class="theory-row">
+            <div><div class="theory-val">O(n)</div></div>
+            <div><div class="theory-label">Outer loop — span length ℓ</div><div class="theory-sub">ℓ ∈ {1…n}</div></div>
+          </div>
+          <div class="theory-row">
+            <div><div class="theory-val">O(n)</div></div>
+            <div><div class="theory-label">Start position i</div><div class="theory-sub">i ∈ {0…n−ℓ}</div></div>
+          </div>
+          <div class="theory-row">
+            <div><div class="theory-val">O(n)</div></div>
+            <div><div class="theory-label">Split point k</div><div class="theory-sub">k ∈ {0…ℓ−2}</div></div>
+          </div>
+          <div class="theory-row">
+            <div><div class="theory-val">O(|G|)</div></div>
+            <div><div class="theory-label">Grammar scan per cell</div><div class="theory-sub">Check all A → BC</div></div>
+          </div>
+          <div style="margin-top:12px;font-size:11px;color:var(--muted);line-height:1.8">
+            <strong style="color:var(--text)">Space: </strong>O(n² · |N|) for the table + backtracking pointers.
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title" style="color:var(--green)">Module Architecture</div>
+          <div class="mod-row"><span class="mod-name">grammar</span><span class="mod-desc">CFG: G = (N, Σ, P, S) data structure</span></div>
+          <div class="mod-row"><span class="mod-name">cnf_converter</span><span class="mod-desc">5-step CNF transformation pipeline</span></div>
+          <div class="mod-row"><span class="mod-name">cyk_engine</span><span class="mod-desc">O(n³|G|) DP with derivation metadata</span></div>
+          <div class="mod-row"><span class="mod-name">tree_builder</span><span class="mod-desc">Backtracking tree reconstruction</span></div>
+          <div class="mod-row"><span class="mod-name">ambiguity_analyzer</span><span class="mod-desc">Multi-tree detection & reporting</span></div>
+          <div class="mod-row"><span class="mod-name">visualization</span><span class="mod-desc">HTML/CSS/JS: table, SVG trees, animation</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section">
+          <div class="section-title" style="color:var(--indigo)">CNF Transformation — Theoretical Basis</div>
+          <div style="font-size:12px;color:var(--muted);line-height:2">
+            <div><strong style="color:var(--text)">Theorem (Chomsky 1959): </strong>Every CFG L (excluding ε) has an equivalent CNF grammar G′ with L(G′) = L(G).</div>
+            <br>
+            <div><strong style="color:var(--text)">CNF Definition: </strong>G = (N,Σ,P,S) is in CNF iff every production is A → BC (A,B,C ∈ N) or A → a (a ∈ Σ).</div>
+            <br>
+            <div><strong style="color:var(--text)">CYK Correctness: </strong>A ∈ table[i][j] iff A ⟹* w[i..i+j]. The string is accepted iff S ∈ table[0][n−1].</div>
+            <br>
+            <div><strong style="color:var(--text)">Ambiguity (undecidable in general): </strong>Whether a CFG is inherently ambiguous is undecidable, but ambiguity for a specific string is decidable by counting distinct parse trees.</div>
+          </div>
+        </div>
+        <div class="section" id="stats-section">
+          <div class="section-title" style="color:var(--amber)">Current Run Statistics</div>
+          <div class="stats-grid" id="stats-grid">
+            <div class="stat-card"><div class="stat-key">String length n</div><div class="stat-val" id="stat-n">—</div></div>
+            <div class="stat-card"><div class="stat-key">CNF productions |G|</div><div class="stat-val" id="stat-g">—</div></div>
+            <div class="stat-card"><div class="stat-key">CYK steps total</div><div class="stat-val" id="stat-steps">—</div></div>
+            <div class="stat-card"><div class="stat-key">Parse trees found</div><div class="stat-val" id="stat-trees">—</div></div>
+            <div class="stat-card"><div class="stat-key">Accepted</div><div class="stat-val" id="stat-accepted">—</div></div>
+            <div class="stat-card"><div class="stat-key">Ambiguous</div><div class="stat-val" id="stat-ambig">—</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// MODULE: grammar — CFG data structure
+// ═══════════════════════════════════════════════════════════════════════
+class CFG {
+  constructor({ nonTerminals, terminals, startSymbol, productions }) {
+    this.nonTerminals = new Set(nonTerminals);
+    this.terminals    = new Set(terminals);
+    this.startSymbol  = startSymbol;
+    this.productions  = productions instanceof Map ? productions : new Map(Object.entries(productions));
+  }
+  clone() {
+    const p = new Map();
+    for (const [lhs, rl] of this.productions) p.set(lhs, rl.map(r => [...r]));
+    return new CFG({ nonTerminals: [...this.nonTerminals], terminals: [...this.terminals],
+      startSymbol: this.startSymbol, productions: p });
+  }
+  addProduction(lhs, rhs) {
+    this.nonTerminals.add(lhs);
+    if (!this.productions.has(lhs)) this.productions.set(lhs, []);
+    const l = this.productions.get(lhs);
+    if (!l.some(r => r.join(' ') === rhs.join(' '))) l.push(rhs);
+  }
+}
+
+function parseGrammarText(text) {
+  const lines = text.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  let nonTerminals = [], terminals = [], startSymbol = '';
+  const productions = new Map();
+  let mode = null;
+  for (const line of lines) {
+    if (line.startsWith('Non-terminals:')) nonTerminals = line.replace('Non-terminals:','').trim().split(/\s+/);
+    else if (line.startsWith('Terminals:'))    terminals    = line.replace('Terminals:','').trim().split(/\s+/);
+    else if (line.startsWith('Start:'))        startSymbol  = line.replace('Start:','').trim();
+    else if (line.startsWith('Productions:'))  mode = 'prod';
+    else if (mode === 'prod' && line.includes('->')) {
+      const [lhs, rhs] = line.split('->').map(s => s.trim());
+      if (!productions.has(lhs)) productions.set(lhs, []);
+      for (const alt of rhs.split('|')) productions.get(lhs).push(alt.trim().split(/\s+/));
+    }
+  }
+  return new CFG({ nonTerminals, terminals, startSymbol, productions });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MODULE: cnf_converter — 5-step CNF transformation
+// ═══════════════════════════════════════════════════════════════════════
+function convertToCNF(cfg) {
+  const log = [];
+  let g = cfg.clone();
+
+  // Step 1: New start symbol
+  const S0 = g.startSymbol + "'";
+  g.nonTerminals.add(S0);
+  if (!g.productions.has(S0)) g.productions.set(S0, []);
+  g.productions.get(S0).push([g.startSymbol]);
+  const origStart = g.startSymbol;
+  g.startSymbol = S0;
+  log.push({ step: 1, name: 'New Start Symbol', detail: `Added ${S0} → ${origStart}` });
+
+  // Step 2: Eliminate ε-productions
+  const nullable = computeNullable(g);
+  g = expandNullable(g, nullable);
+  log.push({ step: 2, name: 'Eliminate ε-productions', detail: `Nullable: {${[...nullable].join(', ') || '∅'}}` });
+
+  // Step 3: Eliminate unit productions
+  g = eliminateUnits(g);
+  log.push({ step: 3, name: 'Eliminate Unit Productions', detail: 'Unit closure chains resolved' });
+
+  // Step 4: Remove useless symbols
+  const before = g.nonTerminals.size;
+  g = removeUseless(g);
+  log.push({ step: 4, name: 'Remove Useless Symbols', detail: `${before - g.nonTerminals.size} NT(s) removed` });
+
+  // Step 5: Binarize & purify
+  let cnt = 0;
+  const usedNTs = new Set(g.nonTerminals);
+  function freshNT(pfx = 'X') {
+    cnt++;
+    let nm = `${pfx}${cnt}`;
+    while (usedNTs.has(nm)) { cnt++; nm = `${pfx}${cnt}`; }
+    usedNTs.add(nm); g.nonTerminals.add(nm);
+    return nm;
+  }
+  const termMap = new Map();
+  function getTermNT(t) {
+    if (!termMap.has(t)) {
+      const nt = freshNT('T');
+      termMap.set(t, nt);
+      g.productions.set(nt, [[t]]);
+    }
+    return termMap.get(t);
+  }
+  for (const lhs of [...g.productions.keys()]) {
+    const newRL = [];
+    for (const rhs of g.productions.get(lhs)) {
+      if (rhs.length === 1) { newRL.push(rhs); continue; }
+      let cur = rhs.map(s => g.terminals.has(s) ? getTermNT(s) : s);
+      while (cur.length > 2) {
+        const nt = freshNT('B');
+        g.productions.set(nt, [cur.slice(cur.length - 2)]);
+        cur = [...cur.slice(0, cur.length - 2), nt];
+      }
+      newRL.push(cur);
+    }
+    g.productions.set(lhs, dedup(newRL));
+  }
+  log.push({ step: 5, name: 'Binarize & Purify', detail: `${cnt} fresh NT(s) introduced` });
+
+  return { cnf: g, log };
+}
+
+function computeNullable(g) {
+  const n = new Set();
+  for (const [lhs, rl] of g.productions)
+    if (rl.some(r => r.length === 1 && r[0] === 'ε')) n.add(lhs);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [lhs, rl] of g.productions)
+      if (!n.has(lhs) && rl.some(r => r.every(s => n.has(s)))) { n.add(lhs); changed = true; }
+  }
+  return n;
+}
+
+function expandNullable(g, nullable) {
+  const ng = g.clone();
+  for (const [lhs, rl] of [...ng.productions.entries()]) {
+    const exp = []; const seen = new Set();
+    for (const rhs of rl) {
+      if (rhs.length === 1 && rhs[0] === 'ε') continue;
+      for (const v of nullableVariants(rhs, nullable)) {
+        if (v.length > 0) { const k = v.join(' '); if (!seen.has(k)) { seen.add(k); exp.push(v); } }
+      }
+    }
+    ng.productions.set(lhs, exp);
+  }
+  return ng;
+}
+
+function nullableVariants(rhs, nullable) {
+  let variants = [[]];
+  for (const sym of rhs) {
+    const w = variants.map(v => [...v, sym]);
+    const wo = nullable.has(sym) ? variants.map(v => [...v]) : [];
+    variants = [...w, ...wo];
+  }
+  return variants;
+}
+
+function eliminateUnits(g) {
+  const ng = g.clone();
+  for (const A of [...ng.nonTerminals]) {
+    const closure = new Set([A]); const q = [A];
+    while (q.length) {
+      const cur = q.shift();
+      for (const rhs of ng.productions.get(cur) || [])
+        if (rhs.length === 1 && ng.nonTerminals.has(rhs[0]) && !closure.has(rhs[0]))
+          { closure.add(rhs[0]); q.push(rhs[0]); }
+    }
+    for (const B of closure) {
+      if (B === A) continue;
+      for (const rhs of ng.productions.get(B) || [])
+        if (!(rhs.length === 1 && ng.nonTerminals.has(rhs[0]))) ng.addProduction(A, rhs);
+    }
+  }
+  for (const [lhs, rl] of ng.productions)
+    ng.productions.set(lhs, rl.filter(r => !(r.length === 1 && ng.nonTerminals.has(r[0]))));
+  return ng;
+}
+
+function removeUseless(g) {
+  const ng = g.clone();
+  const gen = new Set([...g.terminals]);
+  let ch = true;
+  while (ch) {
+    ch = false;
+    for (const [lhs, rl] of g.productions)
+      if (!gen.has(lhs) && rl.some(r => r.every(s => gen.has(s)))) { gen.add(lhs); ch = true; }
+  }
+  const reach = new Set([g.startSymbol]); const q = [g.startSymbol];
+  while (q.length) {
+    const cur = q.shift();
+    for (const rhs of g.productions.get(cur) || [])
+      for (const s of rhs) if (!reach.has(s)) { reach.add(s); q.push(s); }
+  }
+  const useful = new Set([...gen].filter(x => reach.has(x)));
+  for (const [lhs, rl] of [...ng.productions.entries()]) {
+    if (!useful.has(lhs)) { ng.productions.delete(lhs); continue; }
+    ng.productions.set(lhs, rl.filter(r => r.every(s => useful.has(s) || ng.terminals.has(s))));
+  }
+  ng.nonTerminals = new Set([...ng.nonTerminals].filter(x => useful.has(x)));
+  return ng;
+}
+
+function dedup(rl) {
+  const seen = new Set();
+  return rl.filter(r => { const k = r.join(' '); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MODULE: cyk_engine — O(n³|G|) CYK algorithm
+// ═══════════════════════════════════════════════════════════════════════
+function runCYK(cnf, tokens) {
+  const n = tokens.length;
+  // table[i][j] = Map<NT, entry[]>
+  // entry: { terminal:true, tok } OR { splitK, leftSym, rightSym }
+  const table = Array.from({length: n}, () =>
+    Array.from({length: n}, () => new Map())
+  );
+  const steps = [];
+
+  // Base: terminal rules
+  for (let i = 0; i < n; i++) {
+    for (const [lhs, rl] of cnf.productions) {
+      for (const rhs of rl) {
+        if (rhs.length === 1 && rhs[0] === tokens[i]) {
+          if (!table[i][0].has(lhs)) table[i][0].set(lhs, []);
+          const entry = { terminal: true, tok: tokens[i] };
+          table[i][0].get(lhs).push(entry);
+          steps.push({ i, j: 0, nt: lhs, entry });
+        }
+      }
+    }
+  }
+
+  // Inductive: binary rules
+  for (let l = 2; l <= n; l++) {
+    for (let i = 0; i <= n - l; i++) {
+      const j = l - 1;
+      for (let k = 0; k < l - 1; k++) {
+        const lCell = table[i][k];
+        const rCell = table[i + k + 1][j - k - 1];
+        for (const [B] of lCell) {
+          for (const [C] of rCell) {
+            for (const [A, rl] of cnf.productions) {
+              for (const rhs of rl) {
+                if (rhs.length === 2 && rhs[0] === B && rhs[1] === C) {
+                  if (!table[i][j].has(A)) table[i][j].set(A, []);
+                  const entry = { splitK: k, leftSym: B, rightSym: C };
+                  table[i][j].get(A).push(entry);
+                  steps.push({ i, j, nt: A, entry });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return { table, accepted: table[0][n-1].has(cnf.startSymbol), steps, n, tokens };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MODULE: tree_builder — backtracking parse tree reconstruction
+// ═══════════════════════════════════════════════════════════════════════
+function buildAllTrees(table, startNT, n, maxTrees = 20) {
+  const memo = new Map();
+  function rec(nt, i, j) {
+    const key = `${nt}@${i},${j}`;
+    if (memo.has(key)) return memo.get(key);
+    const result = [];
+    memo.set(key, result);
+    const cell = table[i] && table[i][j];
+    if (!cell || !cell.has(nt)) return result;
+    for (const entry of cell.get(nt)) {
+      if (result.length >= maxTrees) break;
+      if (entry.terminal) {
+        result.push({ sym: nt, children: [{ sym: entry.tok }] });
+      } else {
+        const { splitK, leftSym, rightSym } = entry;
+        const lt = rec(leftSym,  i, splitK);
+        const rt = rec(rightSym, i + splitK + 1, j - splitK - 1);
+        for (const l of lt) {
+          for (const r of rt) {
+            if (result.length >= maxTrees) break;
+            result.push({ sym: nt, children: [l, r] });
+          }
+          if (result.length >= maxTrees) break;
+        }
+      }
+    }
+    return result;
+  }
+  return rec(startNT, 0, n - 1);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MODULE: ambiguity_analyzer
+// ═══════════════════════════════════════════════════════════════════════
+function analyzeAmbiguity(trees, accepted) {
+  if (!accepted || trees.length === 0)
+    return { isAmbiguous: false, treeCount: 0, color: 'red',
+      verdict: 'String not accepted — no parse trees.' };
+  if (trees.length === 1)
+    return { isAmbiguous: false, treeCount: 1, color: 'green',
+      verdict: 'Grammar is UNAMBIGUOUS for this input — unique parse tree.' };
+  return { isAmbiguous: true, treeCount: trees.length, color: 'amber',
+    verdict: `Grammar is AMBIGUOUS — ${trees.length} distinct parse tree(s) found for this input.` };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// VISUALIZATION — Tree layout & SVG rendering
+// ═══════════════════════════════════════════════════════════════════════
+function layoutTree(node, depth, xC) {
+  if (!node.children || !node.children.length) {
+    const n = { ...node, x: xC.v * 66 + 34, y: depth * 74 + 38, leaf: true };
+    xC.v++; return n;
+  }
+  const children = node.children.map(c => layoutTree(c, depth + 1, xC));
+  const x = children.reduce((s, c) => s + c.x, 0) / children.length;
+  return { ...node, x, y: depth * 74 + 38, children };
+}
+
+function treeDepth(node) {
+  if (!node.children || !node.children.length) return 0;
+  return 1 + Math.max(...node.children.map(treeDepth));
+}
+
+function leafCount(node) {
+  if (!node.children || !node.children.length) return 1;
+  return node.children.reduce((s, c) => s + leafCount(c), 0);
+}
+
+function renderTreeSVG(tree) {
+  const xC = { v: 0 };
+  const laid = layoutTree(tree, 0, xC);
+  const leaves = leafCount(tree);
+  const depth  = treeDepth(tree);
+  const W = Math.max(leaves * 66 + 68, 280);
+  const H = (depth + 1) * 74 + 60;
+
+  const edgeLines = [];
+  const nodeCircles = [];
+
+  function traverse(n) {
+    if (!n.children) return;
+    for (const c of n.children) {
+      edgeLines.push(`<line x1="${n.x}" y1="${n.y}" x2="${c.x}" y2="${c.y}"
+        stroke="#1e3050" stroke-width="1.5" stroke-linecap="round"/>`);
+      traverse(c);
+    }
+  }
+
+  function drawNodes(n) {
+    const leaf  = !n.children || !n.children.length;
+    const fill  = leaf ? '#1fd2e8' : '#4f8ef7';
+    const r     = leaf ? 16 : 20;
+    const fs    = leaf ? 12 : 11;
+    nodeCircles.push(`
+      <circle cx="${n.x}" cy="${n.y}" r="${r}"
+        fill="${fill}22" stroke="${fill}" stroke-width="1.5"/>
+      <text x="${n.x}" y="${n.y+4}" text-anchor="middle"
+        font-size="${fs}" fill="${fill}" font-weight="700"
+        font-family="JetBrains Mono, monospace">${n.sym}</text>
+    `);
+    if (n.children) n.children.forEach(drawNodes);
+  }
+
+  traverse(laid);
+  drawNodes(laid);
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    ${edgeLines.join('')}
+    ${nodeCircles.join('')}
+  </svg>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TABLE BUILDER — builds partial CYK table for animation
+// ═══════════════════════════════════════════════════════════════════════
+function buildPartialTable(steps, upTo, n) {
+  const t = Array.from({length: n}, () => Array.from({length: n}, () => new Map()));
+  for (let s = 0; s < upTo && s < steps.length; s++) {
+    const { i, j, nt, entry } = steps[s];
+    if (!t[i][j].has(nt)) t[i][j].set(nt, []);
+    t[i][j].get(nt).push(entry);
+  }
+  return t;
+}
+
+function renderCYKTable(table, tokens, n, highlight, cnf) {
+  const startSym = cnf?.startSymbol;
+  let html = `<table class="cyk-table">
+    <thead><tr>
+      <th>i＼ℓ</th>
+      ${Array.from({length: n}, (_, l) => `<th>${l+1}</th>`).join('')}
+    </tr></thead><tbody>`;
+
+  for (let i = 0; i < n; i++) {
+    html += `<tr>
+      <td class="cyk-row-label">${i} <span style="color:var(--muted)">(${tokens[i]})</span></td>`;
+    for (let l = 0; l < n; l++) {
+      if (i + l >= n) { html += `<td class="empty"></td>`; continue; }
+      const j   = l;
+      const cell = table[i]?.[j];
+      const nts  = cell ? [...cell.keys()] : [];
+      const isHL = highlight && highlight.i === i && highlight.j === j;
+      const isAccept = i === 0 && j === n-1 && nts.includes(startSym);
+      let cls = '';
+      if (isHL) cls = 'highlight';
+      else if (isAccept) cls = 'accepted-cell';
+      html += `<td class="${cls}">`;
+      if (nts.length === 0) { html += `<span class="nt-dash">—</span>`; }
+      else {
+        for (const nt of nts) {
+          const extra = nt === startSym ? ' start-nt' : '';
+          html += `<span class="nt-chip${extra}">${nt}</span>`;
+        }
+      }
+      html += `</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════════════════════════════
+let state = {
+  origCFG: null, cnfResult: null,
+  cykData: null, trees: [], ambiguity: null,
+  activeTree: 0,
+  animIdx: -1, animTimer: null, animating: false,
+};
+
+function showError(msg) {
+  const bar = document.getElementById('error-bar');
+  document.getElementById('error-msg').textContent = msg;
+  bar.classList.add('show');
+  setTimeout(() => bar.classList.remove('show'), 4000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════════════════════
+function doConvertCNF() {
+  try {
+    const txt = document.getElementById('grammar-input').value;
+    const cfg = parseGrammarText(txt);
+    state.origCFG = cfg;
+    const result = convertToCNF(cfg);
+    state.cnfResult = result;
+    state.cykData = null; state.trees = []; state.ambiguity = null;
+    renderCNFPanel(cfg, result);
+    switchTabById('cnf');
+    document.getElementById('btn-cyk').disabled = false;
+  } catch(e) { showError('Grammar error: ' + e.message); }
+}
+
+function doRunCYK() {
+  if (!state.cnfResult) { showError('Convert to CNF first.'); return; }
+  try {
+    const tokens = document.getElementById('input-string').value.trim().split(/\s+/);
+    const data = runCYK(state.cnfResult.cnf, tokens);
+    state.cykData = data; state.trees = []; state.ambiguity = null;
+    stopAnimation();
+    renderCYKPanel(data, null, false);
+    switchTabById('cyk');
+    document.getElementById('btn-anim').disabled  = false;
+    document.getElementById('btn-trees').disabled = false;
+    // Update stats
+    document.getElementById('stat-n').textContent = data.n;
+    const gSize = [...state.cnfResult.cnf.productions.values()].reduce((s,r) => s+r.length, 0);
+    document.getElementById('stat-g').textContent = gSize;
+    document.getElementById('stat-steps').textContent = data.steps.length;
+    document.getElementById('stat-trees').textContent = '—';
+    document.getElementById('stat-accepted').textContent = data.accepted ? 'Yes ✓' : 'No ✗';
+    document.getElementById('stat-ambig').textContent = '—';
+  } catch(e) { showError('CYK error: ' + e.message); }
+}
+
+function doAnimate() {
+  if (!state.cykData) { showError('Run CYK first.'); return; }
+  stopAnimation();
+  state.animIdx = 0; state.animating = true;
+  document.getElementById('anim-badge').style.display = '';
+  document.getElementById('btn-anim').disabled = true;
+  switchTabById('cyk');
+  tickAnimation();
+}
+
+function tickAnimation() {
+  if (!state.animating || !state.cykData) return;
+  const { steps, n } = state.cykData;
+  if (state.animIdx >= steps.length) {
+    stopAnimation(); return;
+  }
+  const hl = { i: steps[state.animIdx].i, j: steps[state.animIdx].j };
+  const partTable = buildPartialTable(steps, state.animIdx, n);
+  renderCYKPanel(state.cykData, partTable, true, hl);
+  state.animIdx++;
+  state.animTimer = setTimeout(tickAnimation, 65);
+}
+
+function stopAnimation() {
+  clearTimeout(state.animTimer);
+  state.animating = false;
+  document.getElementById('anim-badge').style.display = 'none';
+  if (state.cykData) document.getElementById('btn-anim').disabled = false;
+}
+
+function doShowTrees() {
+  if (!state.cykData) { showError('Run CYK first.'); return; }
+  stopAnimation();
+  const maxT = parseInt(document.getElementById('max-trees').value) || 10;
+  const trees = buildAllTrees(state.cykData.table, state.cnfResult.cnf.startSymbol, state.cykData.n, maxT);
+  state.trees = trees;
+  state.ambiguity = analyzeAmbiguity(trees, state.cykData.accepted);
+  state.activeTree = 0;
+  renderTreesPanel();
+  switchTabById('trees');
+  document.getElementById('stat-trees').textContent = trees.length;
+  document.getElementById('stat-ambig').textContent =
+    state.ambiguity.isAmbiguous ? 'Yes ⚠' : (state.ambiguity.treeCount > 0 ? 'No ✓' : '—');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// RENDERERS
+// ═══════════════════════════════════════════════════════════════════════
+function renderCNFPanel(origCFG, result) {
+  document.getElementById('cnf-empty').style.display = 'none';
+  document.getElementById('cnf-content').style.display = '';
+
+  // Step chips
+  const chips = document.getElementById('step-chips');
+  chips.innerHTML = result.log.map(s => `
+    <div class="step-chip">
+      <div class="step-chip-title">Step ${s.step}: ${s.name}</div>
+      <div class="step-chip-detail">${s.detail}</div>
+    </div>`).join('');
+
+  // Original grammar
+  const origBox = document.getElementById('orig-grammar-box');
+  origBox.innerHTML = `<div class="grammar-box-title" style="color:var(--muted)">Original CFG</div>` +
+    grammarToHTML(origCFG);
+
+  // CNF grammar
+  const cnfBox = document.getElementById('cnf-grammar-box');
+  cnfBox.innerHTML = `<div class="grammar-box-title" style="color:var(--green)">CNF Grammar</div>` +
+    grammarToHTML(result.cnf);
+
+  document.getElementById('cnf-start-display').textContent = result.cnf.startSymbol;
+}
+
+function grammarToHTML(g) {
+  let html = '';
+  for (const [lhs, rl] of g.productions)
+    for (const rhs of rl)
+      html += `<div class="grammar-rule">${lhs} → ${rhs.join(' ')}</div>`;
+  return html;
+}
+
+function renderCYKPanel(data, overrideTable, partial, hl) {
+  document.getElementById('cyk-empty').style.display = 'none';
+  document.getElementById('cyk-content').style.display = '';
+
+  const banner = document.getElementById('cyk-banner');
+  banner.className = 'banner ' + (data.accepted ? 'banner-green' : 'banner-red');
+  banner.textContent = data.accepted
+    ? `✓  "${document.getElementById('input-string').value}" is ACCEPTED by the grammar`
+    : `✗  "${document.getElementById('input-string').value}" is REJECTED by the grammar`;
+
+  // Tokens
+  const tr = document.getElementById('token-row');
+  tr.innerHTML = '<span style="color:var(--muted);font-size:11px">Tokens:</span>' +
+    data.tokens.map(t => `<span class="token-pill">${t}</span>`).join('');
+
+  // Table
+  const tbl = overrideTable || data.table;
+  document.getElementById('cyk-table-wrap').innerHTML =
+    renderCYKTable(tbl, data.tokens, data.n, hl || null, state.cnfResult?.cnf);
+}
+
+function renderTreesPanel() {
+  const amb = state.ambiguity;
+  const trees = state.trees;
+
+  document.getElementById('trees-empty').style.display = 'none';
+  document.getElementById('trees-content').style.display = '';
+
+  // Banner
+  const banner = document.getElementById('ambiguity-banner');
+  const colorMap = { green: 'banner-green', amber: 'banner-amber', red: 'banner-red' };
+  banner.className = 'banner ' + colorMap[amb.color];
+  banner.textContent = (amb.isAmbiguous ? '⚠  AMBIGUOUS GRAMMAR — ' : '✓  UNAMBIGUOUS — ') + amb.verdict;
+
+  // Detail
+  const detail = document.getElementById('ambiguity-detail');
+  if (amb.isAmbiguous) {
+    detail.innerHTML = `<strong style="color:var(--text)">Definition:</strong>
+      A CFG G is <em>ambiguous</em> iff ∃ w ∈ L(G) with ≥ 2 distinct parse trees
+      (equivalently, ≥ 2 leftmost derivations). For expression grammars, ambiguity
+      typically encodes competing operator precedence or associativity.`;
+  } else detail.textContent = '';
+
+  // Tree selector
+  const sel = document.getElementById('tree-selector');
+  if (trees.length > 1) {
+    sel.innerHTML = '<span style="color:var(--muted);font-size:11px">Select tree:</span>' +
+      trees.map((_, i) => `<button class="tree-btn${i === state.activeTree ? ' active' : ''}"
+        onclick="selectTree(${i})">Tree ${i+1}</button>`).join('');
+  } else sel.innerHTML = '';
+
+  showActiveTree();
+}
+
+function selectTree(i) {
+  state.activeTree = i;
+  // Update buttons
+  document.querySelectorAll('.tree-btn').forEach((b, idx) => {
+    b.classList.toggle('active', idx === i);
+  });
+  showActiveTree();
+}
+
+function showActiveTree() {
+  const trees = state.trees;
+  const i = state.activeTree;
+  document.getElementById('tree-section-title').textContent =
+    `Parse Tree ${i+1} of ${trees.length} — "${document.getElementById('input-string').value}"`;
+  document.getElementById('tree-svg-wrap').innerHTML =
+    trees[i] ? renderTreeSVG(trees[i]) : '<span style="color:var(--muted)">No tree.</span>';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function switchTabById(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.textContent.toLowerCase().includes(id) ||
+        (id === 'input' && t.textContent.includes('Grammar')) ||
+        (id === 'cnf' && t.textContent.includes('CNF')) ||
+        (id === 'cyk' && t.textContent.includes('CYK')) ||
+        (id === 'trees' && t.textContent.includes('Trees')) ||
+        (id === 'theory' && t.textContent.includes('Theory'))) {
+      t.classList.add('active');
+    }
+  });
+}
+</script>
+</body>
+</html>
